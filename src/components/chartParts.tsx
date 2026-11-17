@@ -21,7 +21,7 @@ export function XAxis({
       {scale.ticks(ticks).map((t) => (
         <g key={t} transform={`translate(${scale(t)},0)`}>
           <line y2={4} />
-          <text y={16} textAnchor="middle">
+          <text y={16} textAnchor={scale(t) - a < 24 ? 'start' : b - scale(t) < 24 ? 'end' : 'middle'}>
             {format(t)}
           </text>
         </g>
