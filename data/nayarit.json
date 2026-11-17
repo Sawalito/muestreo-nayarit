@@ -1,0 +1,123 @@
+{
+  "fuente": "data/raw/Nayarit.xlsx (hoja Datos)",
+  "descripcion": "Población por municipio de Nayarit: x = 1970, y = 1980",
+  "N": 19,
+  "X": 544031,
+  "Y": 726120,
+  "municipios": [
+    {
+      "clave": "001",
+      "nombre": "Acaponeta",
+      "x": 29779,
+      "y": 35866
+    },
+    {
+      "clave": "002",
+      "nombre": "Ahuacatlán",
+      "x": 14083,
+      "y": 15846
+    },
+    {
+      "clave": "003",
+      "nombre": "Amatlán de Cañas",
+      "x": 11412,
+      "y": 13036
+    },
+    {
+      "clave": "004",
+      "nombre": "Compostela",
+      "x": 58781,
+      "y": 86189
+    },
+    {
+      "clave": "005",
+      "nombre": "Huajicori",
+      "x": 7088,
+      "y": 8595
+    },
+    {
+      "clave": "006",
+      "nombre": "Ixtlán del Río",
+      "x": 15730,
+      "y": 20875
+    },
+    {
+      "clave": "007",
+      "nombre": "Jala",
+      "x": 11042,
+      "y": 14582
+    },
+    {
+      "clave": "008",
+      "nombre": "Xalisco",
+      "x": 13815,
+      "y": 19705
+    },
+    {
+      "clave": "009",
+      "nombre": "Del Nayar",
+      "x": 11232,
+      "y": 20016
+    },
+    {
+      "clave": "010",
+      "nombre": "Rosamorada",
+      "x": 28740,
+      "y": 34695
+    },
+    {
+      "clave": "011",
+      "nombre": "Ruíz",
+      "x": 15272,
+      "y": 20295
+    },
+    {
+      "clave": "012",
+      "nombre": "San Blas",
+      "x": 32431,
+      "y": 41805
+    },
+    {
+      "clave": "013",
+      "nombre": "San Pedro Lagunillas",
+      "x": 6589,
+      "y": 8308
+    },
+    {
+      "clave": "014",
+      "nombre": "Santa María del Oro",
+      "x": 15250,
+      "y": 18803
+    },
+    {
+      "clave": "015",
+      "nombre": "Santiago Ixcuintla",
+      "x": 84581,
+      "y": 98935
+    },
+    {
+      "clave": "016",
+      "nombre": "Tecuala",
+      "x": 40298,
+      "y": 46341
+    },
+    {
+      "clave": "017",
+      "nombre": "Tepic",
+      "x": 110939,
+      "y": 177007
+    },
+    {
+      "clave": "018",
+      "nombre": "Tuxpan",
+      "x": 27947,
+      "y": 34079
+    },
+    {
+      "clave": "019",
+      "nombre": "La Yesca",
+      "x": 9022,
+      "y": 11142
+    }
+  ]
+}
