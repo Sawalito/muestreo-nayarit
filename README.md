@@ -2,7 +2,7 @@
 
 Aplicación web para visualizar la **distribución en el muestreo** de varios estimadores del total de población de Nayarit en 1980 (Y = 726,120), usando la población de 1970 (X = 544,031) como variable auxiliar. Se hizo para Estadística Aplicada I (muestreo), ITAM.
 
-**Sitio:** https://__USUARIO__.github.io/muestreo-nayarit/
+**Sitio:** https://sawalito.github.io/muestreo-nayarit/
 
 ![Captura de la aplicación](docs/captura.png)
 
