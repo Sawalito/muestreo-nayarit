@@ -1,36 +1,46 @@
 import katex from 'katex';
 import { useId, useMemo, type ReactNode } from 'react';
+import { useReveal, useTweenedNumber } from '../lib/motion';
 
-export function Card({
-  title,
-  subtitle,
-  actions,
-  children,
-  className = '',
+/** Sección editorial: número, título en serif, texto introductorio amplio y contenido. Sin cajas. */
+export function Section({
   id,
+  index,
+  kicker,
+  title,
+  lead,
+  children,
+  aside,
 }: {
-  title?: ReactNode;
-  subtitle?: ReactNode;
-  actions?: ReactNode;
+  id: string;
+  index: string;
+  kicker: string;
+  title: ReactNode;
+  lead?: ReactNode;
   children: ReactNode;
-  className?: string;
-  id?: string;
+  aside?: ReactNode;
 }) {
+  const ref = useReveal<HTMLElement>();
   return (
-    <section
-      id={id}
-      className={`rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.04)] ${className}`}
-    >
-      {(title || actions) && (
-        <header className="flex flex-wrap items-start justify-between gap-3 px-4 pt-4 sm:px-5">
-          <div className="min-w-0">
-            {title && <h2 className="text-[15px] font-semibold tracking-tight text-ink">{title}</h2>}
-            {subtitle && <p className="mt-0.5 text-[13px] leading-snug text-muted">{subtitle}</p>}
-          </div>
-          {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
-        </header>
-      )}
-      <div className="p-4 sm:p-5">{children}</div>
+    <section id={id} ref={ref} className="reveal scroll-mt-8 py-20 sm:py-28" aria-labelledby={`${id}-titulo`}>
+      <header className="mb-10 sm:mb-14">
+        <p className="kicker flex items-center gap-3">
+          <span className="text-ink">{index}</span>
+          <span className="h-px w-8 bg-faint" aria-hidden />
+          {kicker}
+        </p>
+        <h2
+          id={`${id}-titulo`}
+          className="mt-5 max-w-[22ch] text-balance font-serif text-[clamp(2rem,1.4rem+2.4vw,3.25rem)] font-normal leading-[1.08] tracking-[-0.015em] text-ink"
+        >
+          {title}
+        </h2>
+        <div className="mt-6 grid gap-8 xl:grid-cols-[minmax(0,64ch)_1fr]">
+          {lead && <div className="prose-lead space-y-4">{lead}</div>}
+          {aside && <div className="xl:pt-1">{aside}</div>}
+        </div>
+      </header>
+      {children}
     </section>
   );
 }
@@ -40,7 +50,6 @@ export function Segmented<T extends string | number>({
   options,
   onChange,
   label,
-  size = 'md',
 }: {
   value: T;
   options: { value: T; label: ReactNode; title?: string; disabled?: boolean }[];
@@ -49,7 +58,7 @@ export function Segmented<T extends string | number>({
   size?: 'sm' | 'md';
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="inline-flex w-full rounded-lg bg-surface-2 p-0.5">
+    <div role="radiogroup" aria-label={label} className="inline-flex flex-wrap items-center gap-x-3 gap-y-1 sm:gap-x-4">
       {options.map((o) => {
         const active = o.value === value;
         return (
@@ -72,11 +81,17 @@ export function Segmented<T extends string | number>({
               }
             }}
             tabIndex={active ? 0 : -1}
-            className={`flex-1 whitespace-nowrap rounded-md font-medium transition-colors disabled:opacity-40 ${
-              size === 'sm' ? 'px-2 py-1 text-xs' : 'px-2.5 py-1.5 text-[13px]'
-            } ${active ? 'bg-surface text-ink shadow-sm ring-1 ring-line' : 'text-ink-2 hover:text-ink'}`}
+            className={`relative whitespace-nowrap py-1 text-[13px] transition-colors disabled:opacity-40 ${
+              active ? 'text-ink' : 'text-muted hover:text-ink-2'
+            }`}
           >
             {o.label}
+            <span
+              aria-hidden
+              className={`absolute inset-x-0 -bottom-px h-px origin-left bg-ink transition-transform duration-500 ease-[cubic-bezier(0.65,0,0.35,1)] ${
+                active ? 'scale-x-100' : 'scale-x-0'
+              }`}
+            />
           </button>
         );
       })}
@@ -84,54 +99,67 @@ export function Segmented<T extends string | number>({
   );
 }
 
-export function Badge({ children, tone = 'neutral', title }: { children: ReactNode; tone?: 'neutral' | 'exact' | 'mc' | 'warn'; title?: string }) {
-  const cls = {
-    neutral: 'bg-surface-2 text-ink-2',
-    exact: 'bg-[color-mix(in_oklab,var(--d-estrat)_14%,transparent)] text-ink',
-    mc: 'bg-[color-mix(in_oklab,var(--accent)_14%,transparent)] text-ink',
-    warn: 'bg-[color-mix(in_oklab,var(--critical)_14%,transparent)] text-ink',
-  }[tone];
+/** Interruptor de diseño: punto de color + nombre; apagado = atenuado. */
+export function DesignChip({
+  color,
+  label,
+  on,
+  onClick,
+  role = 'switch',
+}: {
+  color: string;
+  label: string;
+  on: boolean;
+  onClick: () => void;
+  role?: 'switch' | 'radio';
+}) {
   return (
-    <span title={title} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${cls}`}>
-      {children}
-    </span>
+    <button
+      type="button"
+      role={role}
+      aria-checked={on}
+      onClick={onClick}
+      className={`group inline-flex items-center gap-2 py-1 text-[13px] transition-all duration-300 ${
+        on ? 'text-ink' : 'text-muted hover:text-ink-2'
+      }`}
+    >
+      <span
+        aria-hidden
+        className="h-2.5 w-2.5 rounded-full transition-all duration-300"
+        style={{
+          background: on ? color : 'transparent',
+          boxShadow: on ? `0 0 0 3px color-mix(in oklab, ${color} 22%, transparent)` : `inset 0 0 0 1.5px ${color}`,
+        }}
+      />
+      <span className={on || role === 'radio' ? '' : 'line-through decoration-faint'}>{label}</span>
+    </button>
   );
 }
 
 export function ExactBadge({ exact }: { exact: boolean }) {
-  return exact ? (
-    <Badge tone="exact" title="Distribución exacta: se enumeraron todas las muestras posibles">
-      <Icon name="check" size={12} /> Exacta
-    </Badge>
-  ) : (
-    <Badge tone="mc" title="Distribución aproximada por simulación Monte Carlo">
-      <Icon name="dice" size={12} /> Monte Carlo
-    </Badge>
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-[0.12em] text-muted"
+      title={exact ? 'Distribución exacta: se enumeraron todas las muestras posibles' : 'Distribución aproximada por simulación Monte Carlo'}
+    >
+      <span aria-hidden className={`h-1 w-1 rounded-full ${exact ? 'bg-ink-2' : 'bg-accent'}`} />
+      {exact ? 'exacta' : 'monte carlo'}
+    </span>
   );
-}
-
-export function Swatch({ color, className = '' }: { color: string; className?: string }) {
-  return <span aria-hidden className={`inline-block h-2.5 w-2.5 shrink-0 rounded-[3px] ${className}`} style={{ background: color }} />;
 }
 
 export function Tex({ children, display = false, className = '' }: { children: string; display?: boolean; className?: string }) {
   const html = useMemo(
-    () => katex.renderToString(children, { displayMode: display, throwOnError: false, strict: false }),
+    () =>
+      katex.renderToString(children, {
+        displayMode: display,
+        throwOnError: false,
+        strict: false,
+        trust: (ctx) => ctx.command === '\\htmlStyle',
+      }),
     [children, display],
   );
   return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
-}
-
-export function Field({ label, hint, children, htmlFor }: { label: ReactNode; hint?: ReactNode; children: ReactNode; htmlFor?: string }) {
-  return (
-    <div className="space-y-1.5">
-      <label htmlFor={htmlFor} className="block text-xs font-semibold uppercase tracking-wide text-muted">
-        {label}
-      </label>
-      {children}
-      {hint && <p className="text-xs leading-snug text-muted">{hint}</p>}
-    </div>
-  );
 }
 
 export function Slider({
@@ -142,6 +170,7 @@ export function Slider({
   onChange,
   label,
   format = String,
+  className = '',
 }: {
   value: number;
   min: number;
@@ -150,10 +179,12 @@ export function Slider({
   onChange: (v: number) => void;
   label: string;
   format?: (v: number) => string;
+  className?: string;
 }) {
   const id = useId();
+  const fill = ((value - min) / (max - min || 1)) * 100;
   return (
-    <div className="flex items-center gap-3">
+    <div className={`flex items-center gap-3 ${className}`}>
       <input
         id={id}
         type="range"
@@ -164,37 +195,33 @@ export function Slider({
         aria-label={label}
         aria-valuetext={format(value)}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="h-2 w-full cursor-pointer"
+        className="range w-full"
+        style={{ ['--fill' as string]: `${fill}%` }}
       />
-      <output htmlFor={id} className="tabular w-16 shrink-0 text-right text-sm font-semibold text-ink">
+      <output htmlFor={id} className="tabular w-14 shrink-0 text-right font-mono text-[13px] text-ink">
         {format(value)}
       </output>
     </div>
   );
 }
 
-export function Button({
+export function IconButton({
   children,
   onClick,
-  variant = 'secondary',
   label,
   disabled,
   pressed,
+  primary,
   className = '',
 }: {
   children: ReactNode;
   onClick?: () => void;
-  variant?: 'primary' | 'secondary' | 'ghost';
-  label?: string;
+  label: string;
   disabled?: boolean;
   pressed?: boolean;
+  primary?: boolean;
   className?: string;
 }) {
-  const cls = {
-    primary: 'bg-accent text-white hover:brightness-110 shadow-sm',
-    secondary: 'bg-surface border border-line text-ink hover:bg-surface-2',
-    ghost: 'text-ink-2 hover:bg-surface-2 hover:text-ink',
-  }[variant];
   return (
     <button
       type="button"
@@ -203,19 +230,29 @@ export function Button({
       aria-pressed={pressed}
       disabled={disabled}
       onClick={onClick}
-      className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-lg px-3 text-[13px] font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${cls} ${className}`}
+      className={`inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[13px] transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-30 ${
+        primary
+          ? 'bg-ink text-page hover:opacity-90'
+          : 'text-ink-2 ring-1 ring-line hover:text-ink hover:ring-faint'
+      } ${className}`}
     >
       {children}
     </button>
   );
 }
 
+/** Número que se anima al cambiar. */
+export function Num({ value, format }: { value: number; format: (v: number) => string }) {
+  const v = useTweenedNumber(value);
+  return <span className="tabular">{format(v)}</span>;
+}
+
 const ICONS: Record<string, ReactNode> = {
-  play: <path d="M7 5.5v13l11-6.5z" fill="currentColor" stroke="none" />,
+  play: <path d="M8 5.5v13l10-6.5z" fill="currentColor" stroke="none" />,
   pause: (
     <g fill="currentColor" stroke="none">
-      <rect x="6.5" y="5" width="4" height="14" rx="1" />
-      <rect x="13.5" y="5" width="4" height="14" rx="1" />
+      <rect x="7" y="5.5" width="3.5" height="13" rx="1" />
+      <rect x="13.5" y="5.5" width="3.5" height="13" rx="1" />
     </g>
   ),
   step: (
@@ -232,11 +269,11 @@ const ICONS: Record<string, ReactNode> = {
   ),
   dice: (
     <g>
-      <rect x="4" y="4" width="16" height="16" rx="3.5" />
-      <circle cx="9" cy="9" r="1.2" fill="currentColor" stroke="none" />
-      <circle cx="15" cy="15" r="1.2" fill="currentColor" stroke="none" />
-      <circle cx="15" cy="9" r="1.2" fill="currentColor" stroke="none" />
-      <circle cx="9" cy="15" r="1.2" fill="currentColor" stroke="none" />
+      <rect x="4" y="4" width="16" height="16" rx="4" />
+      <circle cx="9" cy="9" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="15" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="9" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="15" r="1.1" fill="currentColor" stroke="none" />
     </g>
   ),
   sun: (
@@ -246,12 +283,6 @@ const ICONS: Record<string, ReactNode> = {
     </g>
   ),
   moon: <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />,
-  monitor: (
-    <g>
-      <rect x="3" y="4" width="18" height="12" rx="2" />
-      <path d="M8 20h8M12 16v4" />
-    </g>
-  ),
   github: (
     <path
       fill="currentColor"
@@ -259,29 +290,19 @@ const ICONS: Record<string, ReactNode> = {
       d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.1-1.46-1.1-1.46-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.3 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.75c0 .27.18.58.69.48A10 10 0 0 0 12 2z"
     />
   ),
-  check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
-  info: (
-    <g>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 11v6M12 7.5v.5" />
-    </g>
-  ),
-  warn: (
-    <g>
-      <path d="M12 3.5 2.5 20h19z" />
-      <path d="M12 10v4.5M12 17.2v.3" />
-    </g>
-  ),
   x: <path d="M6 6l12 12M18 6 6 18" />,
   sliders: (
     <g>
-      <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" />
-      <circle cx="16" cy="6" r="2" />
-      <circle cx="10" cy="12" r="2" />
-      <circle cx="18" cy="18" r="2" />
+      <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+      <circle cx="15" cy="7" r="2" />
+      <circle cx="9" cy="17" r="2" />
     </g>
   ),
-  sort: <path d="M8 9l4-4 4 4M8 15l4 4 4-4" />,
+  sort: <path d="M8 10l4-4 4 4M8 14l4 4 4-4" />,
+  chevron: <path d="M9 6l6 6-6 6" />,
+  minus: <path d="M6 12h12" />,
+  plus: <path d="M12 6v12M6 12h12" />,
+  arrowDown: <path d="M12 5v14M6 13l6 6 6-6" />,
 };
 
 export function Icon({ name, size = 16, className = '' }: { name: keyof typeof ICONS | string; size?: number; className?: string }) {
@@ -293,7 +314,7 @@ export function Icon({ name, size = 16, className = '' }: { name: keyof typeof I
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth={1.8}
+      strokeWidth={1.6}
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
@@ -303,16 +324,21 @@ export function Icon({ name, size = 16, className = '' }: { name: keyof typeof I
   );
 }
 
-/** Tooltip flotante posicionado en coordenadas del contenedor. */
+/** Tooltip flotante, translúcido. */
 export function ChartTooltip({ x, y, width, children }: { x: number; y: number; width: number; children: ReactNode }) {
-  const left = Math.min(Math.max(x + 14, 4), Math.max(width - 230, 4));
+  const left = Math.min(Math.max(x + 16, 4), Math.max(width - 236, 4));
   return (
     <div
       role="status"
-      className="pointer-events-none absolute z-10 min-w-[180px] max-w-[260px] rounded-lg border border-line bg-surface/95 px-3 py-2 text-xs shadow-lg backdrop-blur"
+      className="pointer-events-none absolute z-10 min-w-[180px] max-w-[260px] rounded-xl bg-[var(--dock)] px-3.5 py-2.5 text-xs shadow-[0_8px_30px_rgba(0,0,0,0.18)] ring-1 ring-line backdrop-blur-xl"
       style={{ left, top: Math.max(y - 10, 0) }}
     >
       {children}
     </div>
   );
+}
+
+/** Pie de figura discreto. */
+export function Caption({ children }: { children: ReactNode }) {
+  return <p className="mt-4 max-w-[72ch] text-[13px] leading-relaxed text-muted">{children}</p>;
 }

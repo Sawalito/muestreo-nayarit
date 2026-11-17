@@ -1,92 +1,76 @@
-import { scaleLinear } from 'd3';
+import { area, curveStepAfter, line, scaleLinear } from 'd3';
 import { useState } from 'react';
 import { DESIGNS } from '../lib/designs';
-import { fmt2, fmtInt, fmtPct } from '../lib/format';
+import { fmt2, fmtInt } from '../lib/format';
 import { useWidth } from '../lib/hooks';
 import type { DesignId } from '../stats/designs/types';
 import { weightedHistogram } from '../stats/summarize';
 import type { DesignResult } from '../workers/protocol';
 import { TruthLine, XAxis } from './chartParts';
-import { ExactBadge, Segmented } from './ui';
+import { ExactBadge, Num, Segmented } from './ui';
 
-function Panel({
-  r,
-  domain,
-  Y,
-  bins,
-  ymaxShared,
-}: {
-  r: DesignResult;
-  domain: [number, number];
-  Y: number;
-  bins: number;
-  ymaxShared: number | null;
-}) {
+function Panel({ r, domain, Y, bins, ymaxShared, k }: { r: DesignResult; domain: [number, number]; Y: number; bins: number; ymaxShared: number | null; k: string }) {
   const [ref, width] = useWidth<HTMLDivElement>(320);
-  const [hover, setHover] = useState<number | null>(null);
   const meta = DESIGNS[r.design];
   const m = r.metrics!;
-  const height = 170;
-  const mg = { top: 10, right: 10, bottom: 34, left: 10 };
-  const h = weightedHistogram(r.est!, r.prob!, domain[0], domain[1], bins);
+  const height = 180;
+  const mg = { top: 14, right: 4, bottom: 34, left: 4 };
+  const h = Array.from(weightedHistogram(r.est!, r.prob!, domain[0], domain[1], bins));
+  h.push(h[h.length - 1]);
   const bw = (domain[1] - domain[0]) / bins;
   const x = scaleLinear().domain(domain).range([mg.left, width - mg.right]);
   const ymax = ymaxShared ?? Math.max(...h);
-  const y = scaleLinear().domain([0, ymax * 1.05]).range([height - mg.bottom, mg.top]);
-  const px = (width - mg.left - mg.right) / bins;
-  const gap = px > 4 ? 1 : 0;
+  const y = scaleLinear().domain([0, ymax * 1.05]).range([height - mg.bottom, mg.top]).clamp(true);
+  const areaGen = area<number>()
+    .x((_, i) => x(domain[0] + i * bw))
+    .y0(y(0))
+    .y1((d) => y(d))
+    .curve(curveStepAfter);
+  const lineGen = line<number>()
+    .x((_, i) => x(domain[0] + i * bw))
+    .y((d) => y(d))
+    .curve(curveStepAfter);
 
   return (
-    <figure className="rounded-xl border border-line bg-surface p-3">
-      <figcaption className="mb-1 flex flex-wrap items-center justify-between gap-2">
-        <span className="flex items-center gap-2 text-[13px] font-semibold text-ink">
-          <span className="h-3 w-1 rounded-full" style={{ background: meta.color }} />
-          {meta.corto}
+    <figure className="min-w-0">
+      <figcaption className="mb-3 flex items-baseline justify-between gap-3">
+        <span className="flex items-center gap-2.5">
+          <span className="h-2 w-2 rounded-full" style={{ background: meta.color }} />
+          <span className="font-serif text-[19px] text-ink">{meta.corto}</span>
         </span>
         <ExactBadge exact={m.exact} />
       </figcaption>
-      <div ref={ref} className="relative">
-        <svg width={width} height={height} role="img" aria-label={`Histograma de ${meta.nombre}`}>
-          {Array.from(h).map((v, b) => {
-            if (v <= 0) return null;
-            const x0 = x(domain[0] + b * bw);
-            return (
-              <rect
-                key={b}
-                x={x0 + gap / 2}
-                y={y(Math.min(v, ymax * 1.05))}
-                width={Math.max(px - gap, 0.8)}
-                height={y(0) - y(Math.min(v, ymax * 1.05))}
-                rx={px > 6 ? 1.5 : 0}
-                fill={meta.color}
-                fillOpacity={hover === b ? 1 : 0.78}
-                onPointerEnter={() => setHover(b)}
-                onPointerLeave={() => setHover(null)}
-              >
-                <title>
-                  {`${fmtInt(domain[0] + b * bw)} – ${fmtInt(domain[0] + (b + 1) * bw)}: ${fmtPct(v * bw, 2)}`}
-                </title>
-              </rect>
-            );
-          })}
-          <line x1={x(m.mean)} x2={x(m.mean)} y1={mg.top} y2={height - mg.bottom} stroke={meta.color} strokeWidth={2} />
-          <TruthLine x={x(Y)} top={mg.top} bottom={height - mg.bottom} Y={Y} label={false} />
+      <div ref={ref}>
+        <svg width={width} height={height} role="img" aria-label={`Histograma de ${meta.nombre}`} className="overflow-visible">
+          <path key={'a' + k} d={areaGen(h) ?? ''} fill={meta.color} fillOpacity={0.16} className="fade-in" />
+          <path
+            key={'l' + k}
+            d={lineGen(h) ?? ''}
+            fill="none"
+            stroke={meta.color}
+            style={{ color: meta.color }}
+            strokeWidth={1.5}
+            pathLength={1}
+            className="draw-in glow"
+          />
+          <line x1={x(m.mean)} x2={x(m.mean)} y1={mg.top} y2={height - mg.bottom} stroke={meta.color} strokeWidth={1.5} />
+          <TruthLine x={x(Y)} top={mg.top - 6} bottom={height - mg.bottom} Y={Y} label={false} />
           <XAxis scale={x} y={height - mg.bottom} ticks={width < 360 ? 3 : 5} />
         </svg>
       </div>
-      <dl className="mt-1 grid grid-cols-3 gap-2 text-xs">
-        <div>
-          <dt className="text-muted">E(Ŷ)</dt>
-          <dd className="tabular font-semibold text-ink">{fmtInt(m.mean)}</dd>
-        </div>
-        <div>
-          <dt className="text-muted">DE(Ŷ)</dt>
-          <dd className="tabular font-semibold text-ink">{fmtInt(m.sd)}</dd>
-        </div>
-        <div>
-          <dt className="text-muted">Eficiencia vs MAS</dt>
-          <dd className="tabular font-semibold text-ink">{fmt2(m.efficiency)}×</dd>
-        </div>
+      <dl className="mt-3 grid grid-cols-3 gap-3">
+        {[
+          ['E(Ŷ)', m.mean, fmtInt],
+          ['DE(Ŷ)', m.sd, fmtInt],
+          ['vs MAS', m.efficiency, (v: number) => fmt2(v) + '×'],
+        ].map(([k2, v, f]) => (
+          <div key={k2 as string}>
+            <dt className="label">{k2 as string}</dt>
+            <dd className="mt-0.5 text-[15px] text-ink">
+              <Num value={v as number} format={f as (v: number) => string} />
+            </dd>
+          </div>
+        ))}
       </dl>
     </figure>
   );
@@ -97,42 +81,39 @@ export function SmallMultiples({
   ids,
   domain,
   Y,
+  stateKey,
 }: {
   results: Partial<Record<DesignId, DesignResult>>;
   ids: DesignId[];
   domain: [number, number];
   Y: number;
+  stateKey: string;
 }) {
   const [shared, setShared] = useState<'libre' | 'comun'>('libre');
   const valid = ids.map((id) => results[id]).filter((r): r is DesignResult => !!r?.valid && !!r.metrics);
   const bins = 90;
   const ymaxShared =
-    shared === 'comun'
-      ? Math.max(...valid.map((r) => Math.max(...weightedHistogram(r.est!, r.prob!, domain[0], domain[1], bins))))
-      : null;
+    shared === 'comun' ? Math.max(...valid.map((r) => Math.max(...weightedHistogram(r.est!, r.prob!, domain[0], domain[1], bins)))) : null;
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[13px] text-muted">
-          Todos los paneles comparten el <strong className="text-ink-2">eje X</strong>. La línea punteada es Y y la
-          línea sólida es E(Ŷ).
+      <div className="mb-10 flex flex-wrap items-center justify-between gap-4">
+        <p className="text-[13.5px] text-muted">
+          Mismo eje horizontal en todos los paneles. La línea punteada es <span className="font-serif italic text-ink-2">Y</span> y la
+          línea sólida es <span className="font-serif italic text-ink-2">E(Ŷ)</span>.
         </p>
-        <div className="w-56">
-          <Segmented
-            label="Escala del eje Y"
-            size="sm"
-            value={shared}
-            onChange={setShared}
-            options={[
-              { value: 'libre', label: 'Eje Y libre' },
-              { value: 'comun', label: 'Eje Y común' },
-            ]}
-          />
-        </div>
+        <Segmented
+          label="Escala del eje vertical"
+          value={shared}
+          onChange={setShared}
+          options={[
+            { value: 'libre', label: 'Altura libre' },
+            { value: 'comun', label: 'Altura común' },
+          ]}
+        />
       </div>
-      <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+      <div className="grid gap-x-14 gap-y-16 md:grid-cols-2 2xl:grid-cols-3">
         {valid.map((r) => (
-          <Panel key={r.design} r={r} domain={domain} Y={Y} bins={bins} ymaxShared={ymaxShared} />
+          <Panel key={r.design} r={r} domain={domain} Y={Y} bins={bins} ymaxShared={ymaxShared} k={stateKey + shared} />
         ))}
       </div>
     </div>

@@ -1,18 +1,17 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 
 /** Ancho de un contenedor, actualizado con ResizeObserver. */
-export function useWidth<T extends HTMLElement>(initial = 640): [React.RefObject<T>, number] {
-  const ref = useRef<T>(null);
+export function useWidth<T extends HTMLElement>(initial = 640): [(el: T | null) => void, number] {
+  const [el, setEl] = useState<T | null>(null);
   const [w, setW] = useState(initial);
   useLayoutEffect(() => {
-    const el = ref.current;
     if (!el) return;
     setW(el.clientWidth);
     const ro = new ResizeObserver(([e]) => setW(Math.floor(e.contentRect.width)));
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
-  return [ref, w];
+  }, [el]);
+  return [setEl, w];
 }
 
 export type ThemePref = 'claro' | 'oscuro' | 'sistema';
@@ -21,11 +20,11 @@ export function useTheme(): [ThemePref, (t: ThemePref) => void, boolean] {
   const [pref, setPref] = useState<ThemePref>(() => {
     try {
       const t = localStorage.getItem('tema');
-      if (t === 'claro' || t === 'oscuro') return t;
+      if (t === 'claro' || t === 'oscuro' || t === 'sistema') return t;
     } catch {
       /* sin almacenamiento */
     }
-    return 'sistema';
+    return 'oscuro';
   });
   const [systemDark, setSystemDark] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches,
@@ -40,8 +39,7 @@ export function useTheme(): [ThemePref, (t: ThemePref) => void, boolean] {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
     try {
-      if (pref === 'sistema') localStorage.removeItem('tema');
-      else localStorage.setItem('tema', pref);
+      localStorage.setItem('tema', pref);
     } catch {
       /* sin almacenamiento */
     }

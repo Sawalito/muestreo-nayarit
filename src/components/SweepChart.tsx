@@ -6,17 +6,17 @@ import { useWidth } from '../lib/hooks';
 import { DESIGN_IDS } from '../stats/designs';
 import type { DesignId } from '../stats/designs/types';
 import type { SweepRow } from '../workers/protocol';
-import { ChartTooltip, Swatch } from './ui';
+import { ChartTooltip } from './ui';
 
 export function SweepChart({ rows, ids, n }: { rows: SweepRow[] | null; ids: DesignId[]; n: number }) {
   const [ref, width] = useWidth<HTMLDivElement>();
   const [ref2, width2] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
-  if (!rows) return <p className="text-sm text-muted">Calculando…</p>;
+  if (!rows) return <p className="font-serif italic text-muted">Calculando…</p>;
   const active = DESIGN_IDS.filter((d) => ids.includes(d));
   const ns = [...new Set(rows.map((r) => r.n))].sort((a, b) => a - b);
-  const h = 300;
-  const mg = { top: 14, right: 90, bottom: 38, left: 64 };
+  const h = width < 520 ? 320 : 400;
+  const mg = { top: 16, right: width < 520 ? 76 : 104, bottom: 44, left: 56 };
   const x = scaleLinear()
     .domain([ns[0], ns[ns.length - 1]])
     .range([mg.left, width - mg.right]);
@@ -29,16 +29,18 @@ export function SweepChart({ rows, ids, n }: { rows: SweepRow[] | null; ids: Des
     .y((r) => y(r.rmse));
 
   const ratio = rows.filter((r) => r.design === 'razon');
-  const h2 = 220;
-  const mg2 = { top: 14, right: 16, bottom: 38, left: 64 };
+  const h2 = 240;
+  const mg2 = { top: 16, right: 6, bottom: 44, left: 56 };
   const x2 = scaleLinear()
     .domain([ns[0] - 0.5, ns[ns.length - 1] + 0.5])
     .range([mg2.left, width2 - mg2.right]);
   const maxB = Math.max(...ratio.map((r) => Math.abs(r.relBias)), 1e-9);
-  const y2 = scaleLinear().domain([Math.min(0, ...ratio.map((r) => r.relBias)) * 1.1, Math.max(0, maxB) * 1.1]).range([h2 - mg2.bottom, mg2.top]).nice();
-  const bw = Math.max(4, ((width2 - mg2.left - mg2.right) / ns.length) * 0.6);
+  const y2 = scaleLinear()
+    .domain([Math.min(0, ...ratio.map((r) => r.relBias)) * 1.1, Math.max(0, maxB) * 0.2])
+    .range([h2 - mg2.bottom, mg2.top])
+    .nice();
+  const bw = Math.max(3, ((width2 - mg2.left - mg2.right) / ns.length) * 0.42);
 
-  // Etiquetas directas al final de cada línea, separadas si se enciman.
   const ends = active
     .map((id) => {
       const rs = rows.filter((r) => r.design === id);
@@ -47,16 +49,20 @@ export function SweepChart({ rows, ids, n }: { rows: SweepRow[] | null; ids: Des
     })
     .filter(Boolean) as { id: DesignId; y: number; x: number }[];
   ends.sort((a, b) => a.y - b.y);
-  for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 13) ends[i].y = ends[i - 1].y + 13;
+  for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 15) ends[i].y = ends[i - 1].y + 15;
+
+  const logTicks = y.ticks(6).filter((t) => [1, 2, 5].includes(Math.round(t / 10 ** Math.floor(Math.log10(t) + 1e-9))));
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-sm font-semibold text-ink">√ECM según el tamaño de muestra</h3>
-        <p className="mb-2 text-xs text-muted">
-          Escala logarítmica. En los diseños insesgados es la DE exacta de la fórmula del formulario; en la razón es el √ECM exacto por
-          enumeración. La línea vertical marca la n elegida.
-        </p>
+    <div className="space-y-20">
+      <figure>
+        <figcaption className="mb-6 max-w-[64ch]">
+          <h3 className="font-serif text-[22px] text-ink">√ECM según el tamaño de muestra</h3>
+          <p className="mt-2 text-[14px] leading-relaxed text-muted">
+            Escala logarítmica. En los diseños insesgados la curva es la DE exacta de la fórmula del formulario; en la razón es el √ECM
+            exacto obtenido por enumeración. La línea vertical marca la n elegida.
+          </p>
+        </figcaption>
         <div ref={ref} className="relative">
           <svg
             width={width}
@@ -69,48 +75,55 @@ export function SweepChart({ rows, ids, n }: { rows: SweepRow[] | null; ids: Des
               setHover(Math.min(ns[ns.length - 1], Math.max(ns[0], v)));
             }}
             onPointerLeave={() => setHover(null)}
+            className="overflow-visible"
           >
-            {y.ticks(5).filter((t) => [1, 2, 5].includes(Math.round(t / 10 ** Math.floor(Math.log10(t) + 1e-9)))).map((t) => (
+            {logTicks.map((t) => (
               <g key={t} className="axis">
                 <line className="gridline" x1={mg.left} x2={width - mg.right} y1={y(t)} y2={y(t)} />
-                <text x={mg.left - 6} y={y(t)} dy="0.32em" textAnchor="end">
+                <text x={mg.left - 10} y={y(t)} dy="0.32em" textAnchor="end">
                   {fmtAxis(t)}
                 </text>
               </g>
             ))}
             <g className="axis" transform={`translate(0,${h - mg.bottom})`}>
-              <line x1={mg.left} x2={width - mg.right} />
               {ns.map((v) => (
-                <text key={v} x={x(v)} y={16} textAnchor="middle">
+                <text key={v} x={x(v)} y={18} textAnchor="middle" style={v === n ? { fill: 'var(--ink)' } : undefined}>
                   {v}
                 </text>
               ))}
-              <text x={width - mg.right} y={32} textAnchor="end">
+              <text x={width - mg.right} y={36} textAnchor="end" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14 }}>
                 n
               </text>
             </g>
-            <line x1={x(n)} x2={x(n)} y1={mg.top} y2={h - mg.bottom} stroke="var(--axis)" strokeDasharray="3 3" />
+            <line x1={x(n)} x2={x(n)} y1={mg.top} y2={h - mg.bottom} stroke="var(--ink)" strokeOpacity={0.35} strokeDasharray="2 5" strokeLinecap="round" style={{ transition: 'all 600ms cubic-bezier(0.65,0,0.35,1)' }} />
             {active.map((id) => {
               const rs = rows.filter((r) => r.design === id);
               return (
-                <g key={id}>
-                  <path d={ln(rs) ?? ''} fill="none" stroke={DESIGNS[id].color} strokeWidth={2} />
+                <g key={id} style={{ color: DESIGNS[id].color }} className="glow">
+                  <path d={ln(rs) ?? ''} fill="none" stroke={DESIGNS[id].color} strokeWidth={2} pathLength={1} className="draw-in" />
                   {rs.map((r) => (
-                    <circle key={r.n} cx={x(r.n)} cy={y(r.rmse)} r={r.n === hover ? 4.5 : 2.5} fill={DESIGNS[id].color} stroke="var(--surface)" strokeWidth={1.5} />
+                    <circle
+                      key={r.n}
+                      cx={x(r.n)}
+                      cy={y(r.rmse)}
+                      r={r.n === hover || r.n === n ? 4 : 0}
+                      fill={DESIGNS[id].color}
+                      style={{ transition: 'r 250ms ease' }}
+                    />
                   ))}
                 </g>
               );
             })}
             {ends.map((e) => (
-              <text key={e.id} x={e.x + 8} y={e.y} dy="0.32em" fontSize={11} fontWeight={600} style={{ fill: 'var(--ink)' }}>
+              <text key={e.id} x={e.x + 10} y={e.y} dy="0.32em" fontSize={12} className="fade-in" style={{ fill: 'var(--ink-2)' }}>
                 {DESIGNS[e.id].corto}
               </text>
             ))}
-            {hover != null && <line x1={x(hover)} x2={x(hover)} y1={mg.top} y2={h - mg.bottom} stroke="var(--axis)" />}
+            {hover != null && <line x1={x(hover)} x2={x(hover)} y1={mg.top} y2={h - mg.bottom} stroke="var(--faint)" />}
           </svg>
           {hover != null && (
             <ChartTooltip x={x(hover)} y={mg.top} width={width}>
-              <div className="mb-1 font-semibold text-ink">n = {hover}</div>
+              <div className="mb-1.5 font-serif text-[14px] italic text-ink">n = {hover}</div>
               <table className="w-full">
                 <tbody>
                   {active
@@ -119,13 +132,13 @@ export function SweepChart({ rows, ids, n }: { rows: SweepRow[] | null; ids: Des
                     .sort((a, b) => a!.rmse - b!.rmse)
                     .map((r) => (
                       <tr key={r!.design}>
-                        <td className="py-0.5 pr-2 text-ink-2">
-                          <span className="inline-flex items-center gap-1.5">
-                            <Swatch color={DESIGNS[r!.design].color} />
+                        <td className="py-0.5 pr-3 text-ink-2">
+                          <span className="inline-flex items-center gap-2">
+                            <span className="h-1.5 w-1.5 rounded-full" style={{ background: DESIGNS[r!.design].color }} />
                             {DESIGNS[r!.design].corto}
                           </span>
                         </td>
-                        <td className="tabular text-right font-medium text-ink">{fmtInt(r!.rmse)}</td>
+                        <td className="tabular text-right text-ink">{fmtInt(r!.rmse)}</td>
                       </tr>
                     ))}
                 </tbody>
@@ -133,58 +146,61 @@ export function SweepChart({ rows, ids, n }: { rows: SweepRow[] | null; ids: Des
             </ChartTooltip>
           )}
         </div>
-      </div>
+      </figure>
 
       {ratio.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-ink">Sesgo relativo del estimador de razón</h3>
-          <p className="mb-2 text-xs text-muted">
-            Exacto (enumerando todas las muestras). Es de orden 1/n: se reduce rápidamente al crecer n y desaparece en n = N.
-          </p>
+        <figure>
+          <figcaption className="mb-6 max-w-[64ch]">
+            <h3 className="font-serif text-[22px] text-ink">Sesgo relativo del estimador de razón</h3>
+            <p className="mt-2 text-[14px] leading-relaxed text-muted">
+              Calculado de forma exacta, enumerando todas las muestras. Es de orden 1/n: se reduce rápidamente al crecer n y desaparece
+              cuando n = N.
+            </p>
+          </figcaption>
           <div ref={ref2}>
-            <svg width={width2} height={h2} role="img" aria-label="Sesgo relativo del estimador de razón contra n">
+            <svg width={width2} height={h2} role="img" aria-label="Sesgo relativo del estimador de razón contra n" className="overflow-visible">
               {y2.ticks(4).map((t) => (
                 <g key={t} className="axis">
                   <line className="gridline" x1={mg2.left} x2={width2 - mg2.right} y1={y2(t)} y2={y2(t)} />
-                  <text x={mg2.left - 6} y={y2(t)} dy="0.32em" textAnchor="end">
-                    {fmtSignedPct(t, 2)}
+                  <text x={mg2.left - 10} y={y2(t)} dy="0.32em" textAnchor="end">
+                    {fmtSignedPct(t, 1)}
                   </text>
                 </g>
               ))}
-              {ratio.map((r) => {
+              {ratio.map((r, i) => {
                 const y0 = y2(0);
                 const y1 = y2(r.relBias);
                 return (
-                  <g key={r.n}>
-                    <rect
-                      x={x2(r.n) - bw / 2}
-                      width={bw}
-                      y={Math.min(y0, y1)}
-                      height={Math.max(1, Math.abs(y1 - y0))}
-                      rx={3}
-                      fill="var(--d-razon)"
-                      fillOpacity={r.n === n ? 1 : 0.6}
-                    >
-                      <title>{`n = ${r.n}: sesgo ${fmtInt(r.bias)} (${fmtSignedPct(r.relBias, 3)})`}</title>
-                    </rect>
-                  </g>
+                  <rect
+                    key={r.n}
+                    x={x2(r.n) - bw / 2}
+                    width={bw}
+                    y={Math.min(y0, y1)}
+                    height={Math.max(1, Math.abs(y1 - y0))}
+                    rx={Math.min(bw / 2, 4)}
+                    fill="var(--d-razon)"
+                    fillOpacity={r.n === n ? 1 : 0.45}
+                    className="fade-in"
+                    style={{ animationDelay: `${i * 60}ms`, transition: 'fill-opacity 400ms ease' }}
+                  >
+                    <title>{`n = ${r.n}: sesgo ${fmtInt(r.bias)} (${fmtSignedPct(r.relBias, 3)})`}</title>
+                  </rect>
                 );
               })}
+              <line x1={mg2.left} x2={width2 - mg2.right} y1={y2(0)} y2={y2(0)} stroke="var(--baseline)" />
               <g className="axis" transform={`translate(0,${h2 - mg2.bottom})`}>
-                <line x1={mg2.left} x2={width2 - mg2.right} />
                 {ns.map((v) => (
-                  <text key={v} x={x2(v)} y={16} textAnchor="middle" style={v === n ? { fill: 'var(--ink)', fontWeight: 700 } : undefined}>
+                  <text key={v} x={x2(v)} y={18} textAnchor="middle" style={v === n ? { fill: 'var(--ink)' } : undefined}>
                     {v}
                   </text>
                 ))}
-                <text x={width2 - mg2.right} y={32} textAnchor="end">
+                <text x={width2 - mg2.right} y={36} textAnchor="end" style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 14 }}>
                   n
                 </text>
               </g>
-              <line x1={mg2.left} x2={width2 - mg2.right} y1={y2(0)} y2={y2(0)} stroke="var(--baseline)" />
             </svg>
           </div>
-        </div>
+        </figure>
       )}
     </div>
   );

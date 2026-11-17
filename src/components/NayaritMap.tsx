@@ -40,6 +40,7 @@ export function NayaritMap({
   counts,
   ariaLabel,
   height: fixedHeight,
+  highlight,
 }: {
   units: Unit[];
   /** Color de relleno por clave de municipio */
@@ -48,6 +49,8 @@ export function NayaritMap({
   counts?: Map<number, number>;
   ariaLabel: string;
   height?: number;
+  /** Si se da, los municipios con conteo > 0 brillan con este color */
+  highlight?: string;
 }) {
   const [fc, setFc] = useState<FeatureCollection<Geometry, Props> | null>(null);
   const [failed, setFailed] = useState(false);
@@ -87,12 +90,13 @@ export function NayaritMap({
                 key={f.properties.clave}
                 d={path(f) ?? ''}
                 fill={fills(f.properties.clave, i)}
-                stroke="var(--surface)"
+                stroke="var(--page)"
                 strokeWidth={1.2}
                 strokeLinejoin="round"
+                className={highlight && counts?.has(i) ? 'glow' : undefined}
                 onPointerEnter={() => setHover({ i, x: centroids[k][0], y: centroids[k][1] })}
                 onPointerLeave={() => setHover(null)}
-                style={{ transition: 'fill 160ms ease' }}
+                style={{ transition: 'fill 450ms cubic-bezier(0.65,0,0.35,1)', color: highlight }}
               />
             );
           })}
@@ -105,7 +109,7 @@ export function NayaritMap({
             const [cx, cy] = centroids[k];
             return (
               <g key={'c' + f.properties.clave} transform={`translate(${cx},${cy})`} aria-hidden>
-                <circle r={9} fill="var(--surface)" stroke="var(--ink)" strokeWidth={1} />
+                <circle r={9} fill="var(--page)" stroke="var(--ink)" strokeWidth={1} />
                 <text textAnchor="middle" dy="0.35em" fontSize={10} fontWeight={700} style={{ fill: 'var(--ink)' }}>
                   ×{c}
                 </text>
